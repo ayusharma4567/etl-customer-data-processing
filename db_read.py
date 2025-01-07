@@ -8,7 +8,7 @@ def read_from_db(db_file):
         print("Connected to the database successfully.")
 
         # Example: Fetch all records from a table
-        query = "SELECT * FROM staging"  # Replace 'your_table_name' with your actual table name
+        query = "SELECT * FROM table_AU"  # Replace 'your_table_name' with your actual table name
         cursor.execute(query)
 
         # Fetch all the rows of the query result

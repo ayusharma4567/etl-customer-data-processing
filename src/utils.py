@@ -1,38 +1,43 @@
 from datetime import datetime
-
-def validate_staging_data(row, cursor):
+import logging
+def validate_row_data(row, cursor):
     """
-    Validates the data before inserting into the staging table.
+    Validates a single row of data before inserting into the staging table.
     """
     try:
-        # Validate Date Format
-        datetime.strptime(row['Open_Date'], '%Y-%m-%d')
-        datetime.strptime(row['Last_Consulted_Date'], '%Y-%m-%d')
-        datetime.strptime(row['DOB'], '%Y-%m-%d')
-    except ValueError:
-        logging.warning(f"Invalid date format for Customer_ID: {row['Customer_Id']}. Skipping...")
-        return False
-    
-    # Validate Is_Active
-    if 'Is_Active' not in row:
-        logging.warning(f"Missing 'Is_Active' for Customer_ID: {row['Customer_Id']}. Skipping...")
-        return False
-    if row['Is_Active'] not in ['A', 'I']:
-        logging.warning(f"Invalid Is_Active value for Customer_ID: {row['Customer_Id']}. Skipping...")
-        return False
-    
-    # Validate Country
-    if not row['Country']:
-        logging.warning(f"Missing Country for Customer_ID: {row['Customer_Id']}. Skipping...")
+        # Validate Date Formats
+        for date_field in ['Open_Date', 'Last_Consulted_Date', 'DOB']:
+            try:
+                datetime.strptime(row[date_field], '%Y-%m-%d')
+            except ValueError:
+                logging.warning(f"Invalid date format for {date_field} in Customer_ID: {row['Customer_Id']}. Skipping...")
+                return False
+        
+        # Validate Is_Active Field
+        if row.get('Is_Active') not in ['A', 'I']:
+            logging.warning(f"Invalid 'Is_Active' value for Customer_ID: {row['Customer_Id']}. Skipping...")
+            return False
+        
+        # Validate Country Field
+        if not row.get('Country'):
+            logging.warning(f"Missing 'Country' for Customer_ID: {row['Customer_Id']}. Skipping...")
+            return False
+
+        # Check for Duplicate Customer_Id in Database
+        existing = cursor.execute(
+            "SELECT COUNT(*) FROM staging WHERE Customer_Id = ?", 
+            (row['Customer_Id'],)
+        ).fetchone()
+        if existing[0] > 0:
+            logging.warning(f"Duplicate Customer_ID: {row['Customer_Id']} found in staging. Skipping...")
+            return False
+
+        return True
+
+    except Exception as e:
+        logging.error(f"Unexpected error validating row for Customer_ID: {row['Customer_Id']}: {e}")
         return False
 
-    # Validate Customer_Id uniqueness in the staging
-    existing = cursor.execute("SELECT COUNT(*) FROM staging WHERE Customer_Id = ?", (row['Customer_Id'],)).fetchone()
-    if existing[0] > 0:
-        logging.warning(f"Duplicate Customer_ID: {row['Customer_Id']}. Skipping...")
-        return False
-    
-    return True
 
 def validate_country_data(row):
     """
